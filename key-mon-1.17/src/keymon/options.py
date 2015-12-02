@@ -385,9 +385,6 @@ class Options(object):
 
 if __name__ == '__main__':
   o = Options()
-  o.add_option(opt_short='-l', opt_long='--larger', dest='larger', default=False,
-               type='bool',
-               help='Make the dialog 25% larger than normal.')
   o.add_option(opt_short='-m', opt_long='--meta', dest='meta', type='bool',
                ini_group='buttons', ini_name='meta', default=False,
                help='Show the meta (windows) key.')

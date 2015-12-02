@@ -137,45 +137,6 @@ class KeyMon:
     """Shorthand for getattr(self.options, attr)"""
     return getattr(self.options, attr)
 
-  def do_screenshot(self):
-    """Create a screenshot showing some keys."""
-    for key in self.options.screenshot.split(','):
-      try:
-        if key == 'KEY_EMPTY':
-          continue
-        if key.startswith('KEY_'):
-          key_info = self.modmap.get_from_name(key)
-          if not key_info:
-            print 'Key %s not found' % key
-            self.destroy(None)
-            return
-          scancode = key_info[0]
-          event = xlib.XEvent('EV_KEY', scancode=scancode, code=key, value=1)
-        elif key.startswith('BTN_'):
-          event = xlib.XEvent('EV_KEY', scancode=0, code=key, value=1)
-
-        self.handle_event(event)
-        while gtk.events_pending():
-          gtk.main_iteration(False)
-        time.sleep(0.1)
-      except Exception, exp:
-        print exp
-    while gtk.events_pending():
-      gtk.main_iteration(False)
-    time.sleep(0.1)
-    win = self.window
-    x, y = win.get_position()
-    w, h = win.get_size()
-    screenshot = gtk.gdk.Pixbuf.get_from_drawable(
-        gtk.gdk.Pixbuf(gtk.gdk.COLORSPACE_RGB, True, 8, w, h),
-        gtk.gdk.get_default_root_window(),
-        gtk.gdk.colormap_get_system(),
-        x, y, 0, 0, w, h)
-    fname = 'screenshot.png'
-    screenshot.save(fname, 'png')
-    print 'Saved screenshot %r' % fname
-    self.destroy(None)
-
   def create_names_to_fnames(self):
     """Give a name to images."""
     self.svg_size = ''
@@ -207,13 +168,8 @@ class KeyMon:
           self.svg_name('mouse'), self.svg_name('left-mouse'),
           self.svg_name('middle-mouse'), self.svg_name('right-mouse')],
     }
-    if self.options.swap_buttons:
-      # swap the meaning of left and right
-      left_str = 'right'
-      right_str = 'left'
-    else:
-      left_str = 'left'
-      right_str = 'right'
+    left_str = 'left'
+    right_str = 'right'
 
     ftn.update({
       'BTN_RIGHT': [self.svg_name('mouse'),
@@ -361,10 +317,6 @@ class KeyMon:
     key, modifier = gtk.accelerator_parse('<Control>s')
     accelgroup.connect_group(key, modifier, gtk.ACCEL_VISIBLE, self.show_settings_dlg)
     self.window.add_accel_group(accelgroup)
-
-    if self.options.screenshot:
-      gobject.timeout_add(700, self.do_screenshot)
-      return
 
     gobject.idle_add(self.on_idle)
 
@@ -660,11 +612,6 @@ class KeyMon:
     settings_click.show()
     menu.append(settings_click)
 
-    about_click = gtk.MenuItem(_('_About...'))
-    about_click.connect_object('activate', self.show_about_dlg, None)
-    about_click.show()
-    menu.append(about_click)
-
     quitcmd = gtk.MenuItem(_('_Quit\tCtrl-Q'))
     quitcmd.connect_object('activate', self.destroy, None)
     quitcmd.show()
@@ -728,59 +675,9 @@ class KeyMon:
       self.enabled[name] = False
       image.hide()
 
-  def show_about_dlg(self, *_):
-
-    dlg = gtk.AboutDialog()
-    # Find the logo file
-    logo_paths = (os.path.join(self.pathname, '../../icons'),)
-    logo_paths += tuple(logo_path + '/share/pixmaps' for logo_path in (
-            os.path.expanduser('~'),
-            '/usr', '/usr/local', '/opt/local',
-            ))
-    logo_paths = [logo_path + '/key-mon.xpm' for logo_path in logo_paths]
-    for logo_path in logo_paths:
-      if os.path.exists(logo_path):
-        dlg.set_logo(gtk.gdk.pixbuf_new_from_file(logo_path))
-        break
-
-    dlg.set_name('Keyboard Status Monitor')
-    dlg.set_program_name('key-mon')
-    dlg.set_website('http://code.google.com/p/key-mon/')
-    dlg.set_version(__version__)
-    dlg.set_authors([
-        __author__,
-        'Yu-Jie Lin',
-        'Danial G. Taylor',
-        'Jakub Steiner',
-        ])
-    dlg.set_license('''Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-     http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.''')
-    dlg.run()
-    dlg.destroy()
-
-def show_version():
-  """Show the version number and author, used by help2man."""
-  print _('Keymon version %s.') % __version__
-  print _('Written by %s') % __author__
-
 def create_options():
   opts = options.Options()
 
-  opts.add_option(opt_short='-s', opt_long='--smaller', dest='smaller', default=False,
-                  type='bool',
-                  help=_('Make the dialog 25% smaller than normal.'))
-  opts.add_option(opt_short='-l', opt_long='--larger', dest='larger', default=False,
-                  type='bool',
-                  help=_('Make the dialog 25% larger than normal.'))
   opts.add_option(opt_short='-m', opt_long='--meta', dest='meta', type='bool',
                   ini_group='buttons', ini_name='meta', default=None,
                   help=_('Show the meta (windows) key.'))
@@ -836,12 +733,6 @@ def create_options():
                   ini_group='devices', ini_name='map',
                   default=None,
                   help=_('Use this kbd filename.'))
-  opts.add_option(opt_long='--swap', dest='swap_buttons', type='bool',
-                  default=False,
-                  ini_group='devices', ini_name='swap_buttons',
-                  help=_('Swap the mouse buttons.'))
-  opts.add_option(opt_short='-v', opt_long='--version', dest='version', type='bool',
-                  help=_('Show version information and exit.'))
   opts.add_option(opt_short='-t', opt_long='--theme', dest='theme', type='str',
                   ini_group='ui', ini_name='theme', default='classic',
                   help=_('The theme to use when drawing status images (ex. "-t apple").'))
@@ -870,10 +761,6 @@ def create_options():
                   default=False,
                   help=_('Output debugging information. '
                          'Shorthand for --loglevel=debug'))
-  opts.add_option(opt_long='--screenshot', dest='screenshot', type='str', default='',
-                  help=_('Create a "screenshot.png" and exit. '
-                         'Pass a comma separated list of keys to simulate'
-                         '(ex. "KEY_A,KEY_LEFTCTRL").'))
   return opts
 
 
@@ -906,10 +793,6 @@ def main():
   opts.read_ini_file(os.path.join(settings.get_config_dir(), 'config'))
   desc = _('Usage: %prog [Options...]')
   opts.parse_args(desc, sys.argv)
-
-  if opts.version:
-    show_version()
-    sys.exit(0)
 
   opts.themes = settings.get_themes()
   if opts.theme and opts.theme not in opts.themes:

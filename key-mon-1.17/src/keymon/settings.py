@@ -160,11 +160,6 @@ class MiscFrame(CommonFrame):
     """Create the box's layout."""
     vbox = gtk.VBox()
     self._add_check(
-        vbox, 
-        _('Swap left-right mouse buttons'),
-        _('Swap the left and the right mouse buttons'),
-        'swap_buttons')
-    self._add_check(
         vbox,
         _('Highly visible click'),
         _('Show a circle when the users clicks.'),
