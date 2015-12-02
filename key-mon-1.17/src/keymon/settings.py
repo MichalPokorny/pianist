@@ -47,28 +47,6 @@ def get_config_dirs(kind):
           if os.path.exists(d)]
   return config_dirs
 
-def get_themes():
-  """Return a dict of themes.
-    keys are theme names
-    values are tuples of (description, path)
-      path is where the theme directory located,
-      i.e. theme files are path/*.
-  """
-  theme_dirs = get_config_dirs('themes')
-  themes = {}
-  for theme_dir in theme_dirs:
-    for entry in sorted(os.listdir(theme_dir)):
-      try:
-        parser = SafeConfigParser()
-        theme_config = os.path.join(theme_dir, entry, 'config')
-        parser.read(theme_config)
-        desc = parser.get('theme', 'description')
-        if entry not in themes:
-          themes[entry] = (desc, os.path.join(theme_dir, entry))
-      except:
-        LOG.warning(_('Unable to read theme %r') % (theme_config))
-  return themes
-
 def get_kbd_files():
   """Return a list of kbd file paths"""
   config_dirs = get_config_dirs('')

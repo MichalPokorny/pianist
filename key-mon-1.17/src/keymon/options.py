@@ -391,9 +391,6 @@ if __name__ == '__main__':
                help='Use this kbd filename instead running xmodmap.')
   o.add_option(opt_short='-v', opt_long='--version', dest='version', type='bool',
                help='Show version information and exit.')
-  o.add_option(opt_short='-t', opt_long='--theme', dest='theme', type='str',
-               ini_group='ui', ini_name='theme',
-               help='The theme to use when drawing status images (ex. "-t apple").')
   o.add_option(opt_short=None, opt_long=None, type='int',
                dest='x_pos', default=-1, help='Last X Position',
                ini_group='position', ini_name='x')
@@ -402,8 +399,6 @@ if __name__ == '__main__':
                opt_long='--debug', dest='debug', type='bool',
                help='Output debugging information.')
   lines = []
-  lines.append('[ui]')
-  lines.append('theme = classic')
   lines.append('[devices]')
   lines.append('map = us.kbd')
   lines.append('[position]')

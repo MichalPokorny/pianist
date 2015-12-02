@@ -55,18 +55,15 @@ class KeyMon:
     Options dict:
       meta: boolean show the meta (windows key)
       kbd_file: string Use the kbd file given.
-      theme: Name of the theme to use to draw keys
     """
     self.btns = ['MOUSE', 'BTN_RIGHT', 'BTN_MIDDLE', 'BTN_MIDDLERIGHT',
                  'BTN_LEFT', 'BTN_LEFTRIGHT', 'BTN_LEFTMIDDLE',
                  'BTN_LEFTMIDDLERIGHT']
     self.options = options
-    self.pathname = os.path.dirname(os.path.abspath(__file__))
     # Make lint happy by defining these.
     self.hbox = None
     self.window = None
     self.event_box = None
-    self.mouse_indicator_win = None
 
     self.move_dragged = False
     self.shape_mask_current = None
@@ -99,12 +96,6 @@ class KeyMon:
     width, height = 30, 48
     self.window.set_default_size(int(width), int(height))
     self.window.set_decorated(True)
-
-    self.mouse_indicator_win = shaped_window.ShapedWindow(
-        self.svg_name('mouse-indicator'),
-        timeout=self.options.visible_click_timeout)
-
-    self.window.set_opacity(self.options.opacity)
     self.window.set_keep_above(True)
 
     self.event_box = gtk.EventBox()
@@ -114,7 +105,6 @@ class KeyMon:
     self.hbox = gtk.HBox(False, 0)
     self.event_box.add(self.hbox)
 
-    self.layout_boxes()
     self.hbox.show()
 
     self.add_events()
@@ -128,20 +118,9 @@ class KeyMon:
       self.window.move(old_x, old_y)
     self.window.show()
 
-  def layout_boxes(self):
-    for child in self.hbox.get_children():
-      self.hbox.remove(child)
-
-  def svg_name(self, fname):
-    """Return an svg filename given the theme, system."""
-    themepath = self.options.themes[self.options.theme][1]
-    return os.path.join(themepath, '%s.svg' % (fname))
-
   def add_events(self):
     """Add events for the window to listen to."""
     self.window.connect('destroy', self.destroy)
-    self.window.connect('button-press-event', self.button_pressed)
-    self.window.connect('button-release-event', self.button_released)
     self.window.connect('leave-notify-event', self.pointer_leave)
 
     accelgroup = gtk.AccelGroup()
@@ -149,20 +128,6 @@ class KeyMon:
     accelgroup.connect_group(key, modifier, gtk.ACCEL_VISIBLE, self.quit_program)
 
     gobject.idle_add(self.on_idle)
-
-  def button_released(self, unused_widget, evt):
-    """A mouse button was released."""
-    if evt.button == 1:
-      self.move_dragged = None
-    return True
-
-  def button_pressed(self, widget, evt):
-    """A mouse button was pressed."""
-    self.set_accept_focus(True)
-    if evt.button == 1:
-      self.move_dragged = widget.get_pointer()
-      self.window.set_opacity(self.options.opacity)
-    return True
 
   def pointer_leave(self, unused_widget, unused_evt):
 
@@ -175,20 +140,6 @@ class KeyMon:
       logging.debug('window now accepts focus')
     else:
       logging.debug('window now does not accept focus')
-
-  def _window_moved(self):
-    """The window has moved position, save it."""
-    if not self.move_dragged:
-      return
-    old_p = self.move_dragged
-    new_p = self.window.get_pointer()
-    x, y = self.window.get_position()
-    x, y = x + new_p[0] - old_p[0], y + new_p[1] - old_p[1]
-    self.window.move(x, y)
-
-    logging.info('Moved window to %d, %d' % (x, y))
-    self.options.x_pos = x
-    self.options.y_pos = y
 
   def on_idle(self):
     """Check for events on idle."""
@@ -226,11 +177,6 @@ class KeyMon:
 def create_options():
   opts = options.Options()
 
-  opts.add_option(opt_long='--visible-click-timeout', dest='visible_click_timeout',
-                  type='float', default=0.2,
-                  ini_group='ui', ini_name='visible_click_timeout',
-                  help=_('Timeout before highly visible click disappears. '
-                         'Defaults to %default'))
   opts.add_option(opt_long='--only_combo', dest='only_combo', type='bool',
                   ini_group='ui', ini_name='only_combo',
                   default=False,
@@ -239,24 +185,14 @@ def create_options():
                   ini_group='ui', ini_name='sticky_mode',
                   default=False,
                   help=_('Sticky mode'))
-  opts.add_option(opt_long='--visible_click', dest='visible_click', type='bool',
-                  ini_group='ui', ini_name='visible-click',
-                  default=False,
-                  help=_('Show where you clicked'))
   opts.add_option(opt_long='--kbdfile', dest='kbd_file',
                   ini_group='devices', ini_name='map',
                   default=None,
                   help=_('Use this kbd filename.'))
-  opts.add_option(opt_short='-t', opt_long='--theme', dest='theme', type='str',
-                  ini_group='ui', ini_name='theme', default='classic',
-                  help=_('The theme to use when drawing status images (ex. "-t apple").'))
   opts.add_option(opt_long='--reset', dest='reset', type='bool',
                   help=_('Reset all options to their defaults.'),
                   default=None)
 
-  opts.add_option(opt_short=None, opt_long='--opacity', type='float',
-                  dest='opacity', default=1.0, help='Opacity of window',
-                  ini_group='ui', ini_name='opacity')
   opts.add_option(opt_short=None, opt_long=None, type='int',
                   dest='x_pos', default=-1, help='Last X Position',
                   ini_group='position', ini_name='x')
@@ -304,16 +240,6 @@ def main():
   desc = _('Usage: %prog [Options...]')
   opts.parse_args(desc, sys.argv)
 
-  opts.themes = settings.get_themes()
-  if opts.theme and opts.theme not in opts.themes:
-    print _('Theme %r does not exist') % opts.theme
-    print
-    print _('Please make sure %r can be found in '
-            'one of the following directories:') % opts.theme
-    print
-    for theme_dir in settings.get_config_dirs('themes'):
-      print ' - %s' % theme_dir
-    sys.exit(-1)
   if opts.reset:
     print _('Resetting to defaults.')
     opts.reset_to_defaults()
