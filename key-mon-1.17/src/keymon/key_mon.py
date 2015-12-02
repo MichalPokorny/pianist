@@ -101,8 +101,6 @@ class KeyMon:
     self.event_box = None
     self.mouse_indicator_win = None
 
-    self.no_press_timer = None
-
     self.move_dragged = False
     self.shape_mask_current = None
     self.shape_mask_cache = {}
@@ -113,12 +111,10 @@ class KeyMon:
     self.options.kbd_files = settings.get_kbd_files()
     self.modmap = mod_mapper.safely_read_mod_map(self.options.kbd_file, self.options.kbd_files)
 
-    self.name_fnames = self.create_names_to_fnames()
     self.devices = xlib.XEvents()
     self.devices.start()
 
     self.create_window()
-    self.reset_no_press_timer()
 
     path = '/tmp/prvak-log-%s' % time.strftime('%Y%m%d-%H%M%S', time.gmtime())
     self.event_log = open(path, 'w')
@@ -253,7 +249,6 @@ class KeyMon:
     self.window.connect('button-press-event', self.button_pressed)
     self.window.connect('button-release-event', self.button_released)
     self.window.connect('leave-notify-event', self.pointer_leave)
-    self.event_box.connect('button_release_event', self.right_click_handler)
 
     accelgroup = gtk.AccelGroup()
     key, modifier = gtk.accelerator_parse('<Control>q')
@@ -273,10 +268,6 @@ class KeyMon:
     if evt.button == 1:
       self.move_dragged = widget.get_pointer()
       self.window.set_opacity(self.options.opacity)
-      # remove no_press_timer
-      if self.no_press_timer:
-        gobject.source_remove(self.no_press_timer)
-        self.no_press_timer = None
     return True
 
   def pointer_leave(self, unused_widget, unused_evt):
@@ -327,95 +318,6 @@ class KeyMon:
 
     self._log_event(event)
 
-  def reset_no_press_timer(self):
-    """Initialize no_press_timer"""
-    if not self.options.no_press_fadeout:
-      return
-    logging.debug('Resetting no_press_timer')
-    if not self.window.get_property('visible'):
-      self.window.move(self.options.x_pos, self.options.y_pos)
-      self.window.show()
-    self.window.set_opacity(self.options.opacity)
-    if self.no_press_timer:
-      gobject.source_remove(self.no_press_timer)
-      self.no_press_timer = None
-    self.no_press_timer = gobject.timeout_add(int(self.options.no_press_fadeout * 1000), self.no_press_fadeout)
-
-  def no_press_fadeout(self, begin=True):
-    """Fadeout the window in a second
-    Args:
-      begin: indicate if this timeout is requested by handle_event.
-    """
-    opacity = self.window.get_opacity() - self.options.opacity / 10.0
-    if opacity < 0.0:
-      opacity = 0.0;
-    logging.debug('Set opacity = %f' % opacity)
-    self.window.set_opacity(opacity)
-    if opacity == 0.0:
-      self.window.hide()
-      # No need to fade out more
-      self.no_press_timer = None
-      return False
-
-    if begin:
-      # Recreate a new timer with 0.1 seccond interval
-      self.no_press_timer = gobject.timeout_add(100, self.no_press_fadeout)
-      # The current self.options.no_press_fadeout interval will not be timed
-      # out again.
-      return False
-
-  def _show_down_key(self, name):
-    """Show the down key.
-    Normally True, unless combo is set.
-    Args:
-      name: name of the key being held down.
-    Returns:
-      True if the key should be shown
-    """
-    if not self.options.only_combo:
-      return True
-    if self.is_shift_code(name):
-      return True
-    return False
-
-  def is_shift_code(self, code):
-    if code in ('SHIFT', 'ALT', 'ALTGR', 'CTRL', 'META'):
-      return True
-    return False
-
-  def handle_key(self, scan_code, xlib_name, value):
-    """Handle a keyboard event."""
-    code, medium_name, short_name = self.modmap.get_and_check(scan_code,
-                                                              xlib_name)
-    if not code:
-      logging.info('No mapping for scan_code %s', scan_code)
-      return
-    logging.debug('Scan code %s, Key %s pressed = %r', scan_code,
-                                                       code, medium_name)
-    if code in self.name_fnames:
-      return
-    if code.startswith('KEY_KP'):
-      letter = medium_name
-      if code not in self.name_fnames:
-        template = 'one-char-numpad-template'
-        self.name_fnames[code] = [
-            fix_svg_key_closure(self.svg_name(template), [('&amp;', letter)])]
-      return
-
-    if code.startswith('KEY_'):
-      letter = medium_name
-      if code not in self.name_fnames:
-        logging.debug('code not in %s', code)
-        if len(letter) == 1:
-          template = 'one-char-template'
-        else:
-          template = 'multi-char-template'
-        self.name_fnames[code] = [
-            fix_svg_key_closure(self.svg_name(template), [('&amp;', letter)])]
-      else:
-        logging.debug('code in %s', code)
-      return
-
   def quit_program(self, *unused_args):
     """Quit the program."""
     self.devices.stop_listening()
@@ -427,27 +329,6 @@ class KeyMon:
     self.options.save()
     gtk.main_quit()
 
-  def right_click_handler(self, unused_widget, event):
-    """Handle the right click button and show a menu."""
-    if event.button != 3:
-      return
-
-    menu = self.create_context_menu()
-
-    menu.show()
-    menu.popup(None, None, None, event.button, event.time)
-
-  def create_context_menu(self):
-    """Create a context menu on right click."""
-    menu = gtk.Menu()
-
-    quitcmd = gtk.MenuItem(_('_Quit\tCtrl-Q'))
-    quitcmd.connect_object('activate', self.destroy, None)
-    quitcmd.show()
-
-    menu.append(quitcmd)
-    return menu
-
 def create_options():
   opts = options.Options()
 
@@ -456,11 +337,6 @@ def create_options():
                   ini_group='ui', ini_name='visible_click_timeout',
                   help=_('Timeout before highly visible click disappears. '
                          'Defaults to %default'))
-  opts.add_option(opt_long='--no-press-fadeout', dest='no_press_fadeout',
-                  type='float', default=0.0,
-                  ini_group='ui', ini_name='no_press_fadeout',
-                  help=_('Fadeout the window after a period with no key press. '
-                         'Defaults to %default seconds (Experimental)'))
   opts.add_option(opt_long='--only_combo', dest='only_combo', type='bool',
                   ini_group='ui', ini_name='only_combo',
                   default=False,
