@@ -61,6 +61,7 @@ class KeyMon:
     self.devices.start()
 
     path = '/tmp/prvak-log-%s' % time.strftime('%Y%m%d-%H%M%S', time.gmtime())
+    print 'Logging into: %s' % path
     self.event_log = open(path, 'w')
 
     self.add_events()
