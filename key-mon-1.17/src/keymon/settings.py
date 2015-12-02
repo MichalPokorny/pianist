@@ -166,24 +166,9 @@ class MiscFrame(CommonFrame):
         'swap_buttons')
     self._add_check(
         vbox,
-        _('Left+right buttons emulates middle mouse button'),
-        _('Clicking both mouse buttons emulates the middle mouse button.'),
-       'emulate_middle')
-    self._add_check(
-        vbox,
         _('Highly visible click'),
         _('Show a circle when the users clicks.'),
         'visible_click')
-    self._add_check(
-        vbox,
-        _('Window decoration'),
-        _('Show the normal windows borders'),
-        'decorated')
-    self._add_check(
-        vbox,
-        _('Window backgroundless'),
-        _('Show only the buttons'),
-        'backgroundless')
     self._add_check(
         vbox,
         _('Only key combinations'),
@@ -194,14 +179,6 @@ class MiscFrame(CommonFrame):
         _('StickyKeys mode'),
         _('Make modifier keys be sticky'),
         'sticky_mode')
-
-    sizes = ['1.0', '0.6', '0.8', '1.0', '1.2', '1.4', '1.6', '1.8']
-    self._add_dropdown(
-        vbox,
-        _('Scale:'),
-        _('How much larger or smaller than normal to make key-mon. '
-          'Where 1.0 is normal sized.'),
-        sizes, 'scale', 4)
 
     timeouts = ['0.2', '0.4', '0.5', '0.6', '0.8', '1.0', '1.2',
             '1.4', '1.6', '1.8', '2.0', '2.5', '3.0', '3.5', '4.0']

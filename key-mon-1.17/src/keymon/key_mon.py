@@ -87,10 +87,8 @@ class KeyMon:
   def __init__(self, options):
     """Create the Key Mon window.
     Options dict:
-      scale: float 1.0 is default which means normal size.
       meta: boolean show the meta (windows key)
       kbd_file: string Use the kbd file given.
-      emulate_middle: Emulate the middle mouse button.
       theme: Name of the theme to use to draw keys
     """
     settings.SettingsDialog.register()
@@ -99,10 +97,7 @@ class KeyMon:
                  'BTN_LEFTMIDDLERIGHT']
     self.options = options
     self.pathname = os.path.dirname(os.path.abspath(__file__))
-    if self.options.scale < 1.0:
-      self.svg_size = '-small'
-    else:
-      self.svg_size = ''
+    self.svg_size = ''
     # Make lint happy by defining these.
     self.hbox = None
     self.window = None
@@ -130,8 +125,7 @@ class KeyMon:
     self.devices = xlib.XEvents()
     self.devices.start()
 
-    self.pixbufs = lazy_pixbuf_creator.LazyPixbufCreator(self.name_fnames,
-                                                         self.options.scale)
+    self.pixbufs = lazy_pixbuf_creator.LazyPixbufCreator(self.name_fnames)
     self.create_window()
     self.reset_no_press_timer()
 
@@ -180,10 +174,7 @@ class KeyMon:
 
   def create_names_to_fnames(self):
     """Give a name to images."""
-    if self.options.scale < 1.0:
-      self.svg_size = '-small'
-    else:
-      self.svg_size = ''
+    self.svg_size = ''
     ftn = {
       'MOUSE': [self.svg_name('mouse'),],
       'BTN_MIDDLE': [self.svg_name('mouse'), self.svg_name('middle-mouse')],
@@ -233,42 +224,26 @@ class KeyMon:
           self.svg_name('%s-mouse' % right_str)],
     })
 
-    if self.options.scale >= 1.0:
-      ftn.update({
-        'KEY_SPACE': [
-            fix_svg_key_closure(self.svg_name('two-line-wide'),
-            [('TOP', 'Space'), ('BOTTOM', '')])],
-        'KEY_TAB': [
-            fix_svg_key_closure(self.svg_name('two-line-wide'),
-            [('TOP', 'Tab'), ('BOTTOM', u'\u21B9')])],
-        'KEY_BACKSPACE': [
-            fix_svg_key_closure(self.svg_name('two-line-wide'),
-            [('TOP', 'Back'), ('BOTTOM', u'\u21fd')])],
-        'KEY_RETURN': [
-            fix_svg_key_closure(self.svg_name('two-line-wide'),
-            [('TOP', 'Enter'), ('BOTTOM', u'\u23CE')])],
-        'KEY_CAPS_LOCK': [
-            fix_svg_key_closure(self.svg_name('two-line-wide'),
-            [('TOP', 'Capslock'), ('BOTTOM', '')])],
-        'KEY_MULTI_KEY': [
-            fix_svg_key_closure(self.svg_name('two-line-wide'),
-            [('TOP', 'Compose'), ('BOTTOM', '')])],
-      })
-    else:
-      ftn.update({
-        'KEY_SPACE': [
-            fix_svg_key_closure(self.svg_name('one-line-wide'), [('&amp;', 'Space')])],
-        'KEY_TAB': [
-            fix_svg_key_closure(self.svg_name('one-line-wide'), [('&amp;', 'Tab')])],
-        'KEY_BACKSPACE': [
-            fix_svg_key_closure(self.svg_name('one-line-wide'), [('&amp;', 'Back')])],
-        'KEY_RETURN': [
-            fix_svg_key_closure(self.svg_name('one-line-wide'), [('&amp;', 'Enter')])],
-        'KEY_CAPS_LOCK': [
-            fix_svg_key_closure(self.svg_name('one-line-wide'), [('&amp;', 'Capslck')])],
-        'KEY_MULTI_KEY': [
-            fix_svg_key_closure(self.svg_name('one-line-wide'), [('&amp;', 'Compose')])],
-      })
+    ftn.update({
+      'KEY_SPACE': [
+          fix_svg_key_closure(self.svg_name('two-line-wide'),
+          [('TOP', 'Space'), ('BOTTOM', '')])],
+      'KEY_TAB': [
+          fix_svg_key_closure(self.svg_name('two-line-wide'),
+          [('TOP', 'Tab'), ('BOTTOM', u'\u21B9')])],
+      'KEY_BACKSPACE': [
+          fix_svg_key_closure(self.svg_name('two-line-wide'),
+          [('TOP', 'Back'), ('BOTTOM', u'\u21fd')])],
+      'KEY_RETURN': [
+          fix_svg_key_closure(self.svg_name('two-line-wide'),
+          [('TOP', 'Enter'), ('BOTTOM', u'\u23CE')])],
+      'KEY_CAPS_LOCK': [
+          fix_svg_key_closure(self.svg_name('two-line-wide'),
+          [('TOP', 'Capslock'), ('BOTTOM', '')])],
+      'KEY_MULTI_KEY': [
+          fix_svg_key_closure(self.svg_name('two-line-wide'),
+          [('TOP', 'Compose'), ('BOTTOM', '')])],
+    })
     return ftn
 
   def create_window(self):
@@ -277,9 +252,9 @@ class KeyMon:
     self.window.set_resizable(False)
 
     self.window.set_title('Keyboard Status Monitor')
-    width, height = 30 * self.options.scale, 48 * self.options.scale
+    width, height = 30, 48
     self.window.set_default_size(int(width), int(height))
-    self.window.set_decorated(self.options.decorated)
+    self.window.set_decorated(True)
 
     self.mouse_indicator_win = shaped_window.ShapedWindow(
         self.svg_name('mouse-indicator'),
@@ -316,49 +291,6 @@ class KeyMon:
       self.window.move(old_x, old_y)
     self.window.show()
 
-  def update_shape_mask(self, *unused_args, **kwargs):
-    if not self.options.backgroundless:
-      return
-    force = kwargs.get('force', False)
-
-    btns = [btn for btn in self.buttons if btn.get_visible()]
-    # Generate id to see if current mask needs to be updated, which is a tuple
-    # of allocation of buttons.
-    cache_id = tuple(tuple(btn.get_allocation()) for btn in btns)
-    if cache_id == self.shape_mask_current and not force:
-      return
-
-    # Try to find existing mask in cache
-    # TODO limit number of cached masks
-    shape_mask = self.shape_mask_cache.get(cache_id, None)
-    if shape_mask and not force:
-      self.window.shape_combine_mask(shape_mask, 0, 0)
-      self.shape_mask_current = cache_id
-      return
-
-    _, _, width, height = self.window.get_allocation()
-    masks = [self.pixbufs.get(btn.current).render_pixmap_and_mask()[1] \
-             for btn in btns]
-    shape_mask = gtk.gdk.Pixmap(None, width, height, masks[0].get_depth())
-
-    gc = gtk.gdk.GC(shape_mask)
-    # Initialize the mask just in case masks of buttons can't fill the window,
-    # if that happens, some artifacts will be seen usually at right edge.
-    gc.set_foreground(
-        gtk.gdk.Color(pixel=0) if self.options.backgroundless else \
-        gtk.gdk.Color(pixel=1))
-    shape_mask.draw_rectangle(gc, True, 0, 0, width, height)
-
-    for btn_allocation, mask in zip(cache_id, masks):
-      # Don't create mask until every image is allocated
-      if btn_allocation[0] == -1:
-        return
-      shape_mask.draw_drawable(gc, mask, 0, 0, *btn_allocation)
-
-    self.window.shape_combine_mask(shape_mask, 0, 0)
-    self.shape_mask_current = cache_id
-    self.shape_mask_cache[cache_id] = shape_mask
-
   def create_images(self):
     self.images['MOUSE'] = two_state_image.TwoStateImage(self.pixbufs, 'MOUSE')
     for img in self.MODS:
@@ -378,7 +310,6 @@ class KeyMon:
         but.timeout_secs = self.options.mouse_timeout
       else:
         but.timeout_secs = self.options.key_timeout
-      but.connect('size_allocate', self.update_shape_mask)
 
   def layout_boxes(self):
     for child in self.hbox.get_children():
@@ -600,8 +531,6 @@ class KeyMon:
     if not code:
       logging.info('No mapping for scan_code %s', scan_code)
       return
-    if self.options.scale < 1.0 and short_name:
-      medium_name = short_name
     logging.debug('Scan code %s, Key %s pressed = %r', scan_code,
                                                        code, medium_name)
     if code in self.name_fnames:
@@ -652,11 +581,7 @@ class KeyMon:
             n_code = i
           if btn == self.images['MOUSE'].current:
             n_image = i
-        if self.options.emulate_middle and ((self.images['MOUSE'].current == 'BTN_LEFT'
-            and code == 'BTN_RIGHT') or
-            (self.images['MOUSE'].current == 'BTN_RIGHT' and code == 'BTN_LEFT')):
-          code = 'BTN_MIDDLE'
-        elif value == 0 and n_code != n_image:
+        if value == 0 and n_code != n_image:
           code = self.btns[n_image - n_code]
         elif value == 1 and n_image:
           code = self.btns[n_image | n_code]
@@ -715,13 +640,6 @@ class KeyMon:
     """Create a context menu on right click."""
     menu = gtk.Menu()
 
-    toggle_chrome = gtk.CheckMenuItem(_('Window _Chrome'))
-    toggle_chrome.set_active(self.window.get_decorated())
-    toggle_chrome.connect_object('activate', self.toggle_chrome,
-       self.window.get_decorated())
-    toggle_chrome.show()
-    menu.append(toggle_chrome)
-
     settings_click = gtk.MenuItem(_('_Settings...\tCtrl-S'))
     settings_click.connect_object('activate', self.show_settings_dlg, None)
     settings_click.show()
@@ -738,11 +656,6 @@ class KeyMon:
 
     menu.append(quitcmd)
     return menu
-
-  def toggle_chrome(self, current):
-    """Toggle whether the window has chrome or not."""
-    self.window.set_decorated(not current)
-    self.options.decorated = not self.options.decorated
 
   def show_settings_dlg(self, *unused_args):
     """Show the settings dialog."""
@@ -762,7 +675,7 @@ class KeyMon:
     self.mouse_indicator_win.timeout = self.options.visible_click_timeout
     self.window.set_decorated(self.options.decorated)
     self.name_fnames = self.create_names_to_fnames()
-    self.pixbufs.reset_all(self.name_fnames, self.options.scale)
+    self.pixbufs.reset_all(self.name_fnames, 1.0)
     for but in self.buttons:
       if but.normal != 'KEY_EMPTY':
         but.reset_image(self.enabled[but.normal.replace('_EMPTY', '')])
@@ -782,7 +695,6 @@ class KeyMon:
     self.event_box.resize_children()
     self.window.resize_children()
     self.window.move(x, y)
-    self.update_shape_mask(force=True)
 
     # reload keymap
     self.modmap = mod_mapper.safely_read_mod_map(
@@ -869,10 +781,6 @@ def create_options():
   opts.add_option(opt_long='--alt', dest='alt', type='bool', default=True,
                   ini_group='buttons', ini_name='alt',
                   help=_('Show the alt key.'))
-  opts.add_option(opt_long='--scale', dest='scale', type='float', default=1.0,
-                  ini_group='ui', ini_name='scale',
-                  help=_('Scale the dialog. ex. 2.0 is 2 times larger, 0.5 is '
-                         'half the size. Defaults to %default'))
   opts.add_option(opt_long='--key-timeout', dest='key_timeout',
                   type='float', default=0.5,
                   ini_group='ui', ini_name='key_timeout',
@@ -888,14 +796,6 @@ def create_options():
                   ini_group='ui', ini_name='visible_click_timeout',
                   help=_('Timeout before highly visible click disappears. '
                          'Defaults to %default'))
-  opts.add_option(opt_long='--decorated', dest='decorated', type='bool',
-                  ini_group='ui', ini_name='decorated',
-                  default=False,
-                  help=_('Show decoration'))
-  opts.add_option(opt_long='--backgroundless', dest='backgroundless', type='bool',
-                  ini_group='ui', ini_name='backgroundless',
-                  default=False,
-                  help=_('Show only buttons'))
   opts.add_option(opt_long='--no-press-fadeout', dest='no_press_fadeout',
                   type='float', default=0.0,
                   ini_group='ui', ini_name='no_press_fadeout',
@@ -925,18 +825,11 @@ def create_options():
                   default=False,
                   ini_group='devices', ini_name='swap_buttons',
                   help=_('Swap the mouse buttons.'))
-  opts.add_option(opt_long='--emulate-middle', dest='emulate_middle', type='bool',
-                  default=False,
-                  ini_group='devices', ini_name='emulate_middle',
-                  help=_('When you press the left, and right mouse buttons at the same time, '
-                         'it displays as a middle mouse button click. '))
   opts.add_option(opt_short='-v', opt_long='--version', dest='version', type='bool',
                   help=_('Show version information and exit.'))
   opts.add_option(opt_short='-t', opt_long='--theme', dest='theme', type='str',
                   ini_group='ui', ini_name='theme', default='classic',
                   help=_('The theme to use when drawing status images (ex. "-t apple").'))
-  opts.add_option(opt_long='--list-themes', dest='list_themes', type='bool',
-                  help=_('List available themes'))
   opts.add_option(opt_long='--old-keys', dest='old_keys', type='int',
                   ini_group='buttons', ini_name='old-keys',
                   help=_('How many historical keypresses to show (defaults to %default)'),
@@ -1002,21 +895,9 @@ def main():
   if opts.version:
     show_version()
     sys.exit(0)
-  if opts.smaller:
-    opts.scale = 0.75
-  elif opts.larger:
-    opts.scale = 1.25
 
   opts.themes = settings.get_themes()
-  if opts.list_themes:
-    print _('Available themes:')
-    print
-    theme_names = sorted(opts.themes)
-    name_len = max(len(name) for name in theme_names)
-    for theme in theme_names:
-      print (' - %%-%ds: %%s' % name_len) % (theme, opts.themes[theme][0])
-    raise SystemExit()
-  elif opts.theme and opts.theme not in opts.themes:
+  if opts.theme and opts.theme not in opts.themes:
     print _('Theme %r does not exist') % opts.theme
     print
     print _('Please make sure %r can be found in '

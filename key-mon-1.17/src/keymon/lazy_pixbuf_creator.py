@@ -41,21 +41,19 @@ import types
 
 class LazyPixbufCreator(object):
   """Class to create SVG images on the fly."""
-  def __init__(self, name_fnames, resize):
+  def __init__(self, name_fnames):
     """Initialize with empty.
 
     Args:
       name_fnames: List of names to filename list.
     """
     self.pixbufs = {}
-    self.resize = resize
     self.name_fnames = name_fnames
 
-  def reset_all(self, names_fnames, resize):
+  def reset_all(self, names_fnames):
     """Resets the name to filenames and size."""
     self.pixbufs = {}
     self.name_fnames = names_fnames
-    self.resize = resize
 
   def get(self, name):
     """Get the pixbuf with this name."""
@@ -80,7 +78,6 @@ class LazyPixbufCreator(object):
         img = self._composite(img, self._read_from_file(operation))
       else:
         image_bytes = operation()
-        image_bytes = self._resize(image_bytes)
         img = self._composite(img, self._read_from_bytes(image_bytes))
     self.pixbufs[name] = img
     return name
@@ -105,12 +102,7 @@ class LazyPixbufCreator(object):
   def _read_from_file(self, fname):
     """Read in the file in from fname."""
     logging.debug('Read file %s', fname)
-    if self.resize == 1.0:
-      return gtk.gdk.pixbuf_new_from_file(fname)
-    fin = open(fname)
-    image_bytes = self._resize(fin.read())
-    fin.close()
-    return self._read_from_bytes(image_bytes)
+    return gtk.gdk.pixbuf_new_from_file(fname)
 
   def _read_from_bytes(self, image_bytes):
     """Writes the bytes to a file and then reads the file."""
@@ -129,24 +121,12 @@ class LazyPixbufCreator(object):
       pass
     return img
 
-  def _resize(self, image_bytes):
-    """Resize the image by manipulating the svg."""
-    if self.resize == 1.0:
-      return image_bytes
-    template = r'(<svg[^<]+)(%s=")(\d+\.?\d*)'
-    image_bytes = self._resize_text(image_bytes, template % 'width')
-    image_bytes = self._resize_text(image_bytes, template % 'height')
-    image_bytes = image_bytes.replace('<g',
-        '<g transform="scale(%f, %f)"' % (self.resize, self.resize), 1)
-    return image_bytes
-
   def _resize_text(self, image_bytes, regular_exp):
     """Change the numeric value of some sizing text by regular expression."""
     re_x = re.compile(regular_exp)
     grps = re_x.search(image_bytes)
     if grps:
       num = float(grps.group(3))
-      num = num * self.resize
       replace = grps.group(1) + grps.group(2) + str(num)
       image_bytes = re_x.sub(replace, image_bytes, 1)
     return image_bytes

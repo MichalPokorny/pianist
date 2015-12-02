@@ -391,10 +391,6 @@ if __name__ == '__main__':
   o.add_option(opt_short='-m', opt_long='--meta', dest='meta', type='bool',
                ini_group='buttons', ini_name='meta', default=False,
                help='Show the meta (windows) key.')
-  o.add_option(opt_long='--scale', dest='scale', type='float', default=1.0,
-               ini_group='ui', ini_name='scale',
-               help='Scale the dialog. ex. 2.0 is 2 times larger, 0.5 is '
-                    'half the size. Defaults to %default')
   o.add_option(opt_long='--kbdfile', dest='kbd_file',
                ini_group='devices', ini_name='map',
                default='us.kbd',
@@ -404,8 +400,6 @@ if __name__ == '__main__':
   o.add_option(opt_short='-t', opt_long='--theme', dest='theme', type='str',
                ini_group='ui', ini_name='theme',
                help='The theme to use when drawing status images (ex. "-t apple").')
-  o.add_option(opt_long='--list-themes', dest='list_themes', type='bool',
-               help='List available themes')
   o.add_option(opt_long='--old-keys', dest='old_keys', type='int',
                ini_group='buttons', ini_name='old-keys',
                help='How many historical keypresses to show (defaults to %default)',
@@ -419,7 +413,6 @@ if __name__ == '__main__':
                help='Output debugging information.')
   lines = []
   lines.append('[ui]')
-  lines.append('scale = 1.0')
   lines.append('theme = classic')
   lines.append('[buttons]')
   lines.append('meta = 0')
