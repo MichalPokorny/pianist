@@ -39,11 +39,9 @@ except ImportError:
   sys.exit(-1)
 
 import options
-import lazy_pixbuf_creator
 import mod_mapper
 import settings
 import shaped_window
-import two_state_image
 
 from ConfigParser import SafeConfigParser
 
@@ -92,7 +90,6 @@ class KeyMon:
       kbd_file: string Use the kbd file given.
       theme: Name of the theme to use to draw keys
     """
-    settings.SettingsDialog.register()
     self.btns = ['MOUSE', 'BTN_RIGHT', 'BTN_MIDDLE', 'BTN_MIDDLERIGHT',
                  'BTN_LEFT', 'BTN_LEFTRIGHT', 'BTN_LEFTMIDDLE',
                  'BTN_LEFTMIDDLERIGHT']
@@ -121,7 +118,6 @@ class KeyMon:
     self.devices = xlib.XEvents()
     self.devices.start()
 
-    self.pixbufs = lazy_pixbuf_creator.LazyPixbufCreator(self.name_fnames)
     self.create_window()
     self.reset_no_press_timer()
 
@@ -268,10 +264,6 @@ class KeyMon:
     accelgroup = gtk.AccelGroup()
     key, modifier = gtk.accelerator_parse('<Control>q')
     accelgroup.connect_group(key, modifier, gtk.ACCEL_VISIBLE, self.quit_program)
-
-    key, modifier = gtk.accelerator_parse('<Control>s')
-    accelgroup.connect_group(key, modifier, gtk.ACCEL_VISIBLE, self.show_settings_dlg)
-    self.window.add_accel_group(accelgroup)
 
     gobject.idle_add(self.on_idle)
 
@@ -455,48 +447,12 @@ class KeyMon:
     """Create a context menu on right click."""
     menu = gtk.Menu()
 
-    settings_click = gtk.MenuItem(_('_Settings...\tCtrl-S'))
-    settings_click.connect_object('activate', self.show_settings_dlg, None)
-    settings_click.show()
-    menu.append(settings_click)
-
     quitcmd = gtk.MenuItem(_('_Quit\tCtrl-Q'))
     quitcmd.connect_object('activate', self.destroy, None)
     quitcmd.show()
 
     menu.append(quitcmd)
     return menu
-
-  def show_settings_dlg(self, *unused_args):
-    """Show the settings dialog."""
-    dlg = settings.SettingsDialog(self.window, self.options)
-    dlg.connect('settings-changed', self.settings_changed)
-    dlg.show_all()
-    dlg.run()
-    dlg.destroy()
-
-  def settings_changed(self, unused_dlg):
-    """Event received from the settings dialog."""
-    self.layout_boxes()
-    self.mouse_indicator_win.hide()
-    self.mouse_indicator_win.timeout = self.options.visible_click_timeout
-    self.window.set_decorated(self.options.decorated)
-    self.name_fnames = self.create_names_to_fnames()
-    self.pixbufs.reset_all(self.name_fnames, 1.0)
-
-    # all this to get it to resize smaller
-    x, y = self.window.get_position()
-    self.hbox.resize_children()
-    self.window.resize_children()
-    self.window.reshow_with_initial_size()
-    self.hbox.resize_children()
-    self.event_box.resize_children()
-    self.window.resize_children()
-    self.window.move(x, y)
-
-    # reload keymap
-    self.modmap = mod_mapper.safely_read_mod_map(
-            self.options.kbd_file, self.options.kbd_files)
 
 def create_options():
   opts = options.Options()

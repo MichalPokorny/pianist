@@ -21,8 +21,6 @@ Thanks to mathias.gumz for the original code.
 import gobject
 import gtk
 
-import lazy_pixbuf_creator
-
 class ShapedWindow(gtk.Window):
   """Create a window shaped as fname."""
   def __init__(self, fname, timeout=0.2):
@@ -37,16 +35,6 @@ class ShapedWindow(gtk.Window):
     self.name_fnames = {
       'mouse' : [fname],
     }
-    self.pixbufs = lazy_pixbuf_creator.LazyPixbufCreator(self.name_fnames)
-    self.pixbuf = self.pixbufs.get('mouse')
-    self.resize(self.pixbuf.get_width(), self.pixbuf.get_height())
-
-    # a pixmap widget to contain the pixmap
-    self.image = gtk.Image()
-    bitmap, self.mask = self.pixbuf.render_pixmap_and_mask()
-    self.image.set_from_pixmap(bitmap, self.mask)
-    self.image.show()
-    self.add(self.image)
 
   def _on_size_allocate(self, win, unused_allocation):
     """Called when first allocated."""
