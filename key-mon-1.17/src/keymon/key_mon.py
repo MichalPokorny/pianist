@@ -47,39 +47,6 @@ from ConfigParser import SafeConfigParser
 
 gettext.install('key-mon', 'locale')
 
-
-def fix_svg_key_closure(fname, from_tos):
-  """Create a closure to modify the key.
-  Args:
-    from_tos: list of from, to pairs for search replace.
-  Returns:
-    A bound function which returns the file fname with modifications.
-  """
-
-  def fix_svg_key():
-    """Given an SVG file return the SVG text fixed."""
-    logging.debug('Read file %r', fname)
-    fin = open(fname)
-    fbytes = fin.read()
-    fin.close()
-    for fin, t in from_tos:
-      # Quick XML escape fix
-      t = t.replace('<', '&lt;')
-      fbytes = fbytes.replace(fin, t)
-    return fbytes
-
-  return fix_svg_key
-
-
-def cstrf(func):
-  """Change locale before using str function"""
-  OLD_CTYPE = locale.getlocale(locale.LC_CTYPE)
-  locale.setlocale(locale.LC_CTYPE, 'C')
-  s = func()
-  locale.setlocale(locale.LC_CTYPE, OLD_CTYPE)
-  return s
-
-
 class KeyMon:
   """main KeyMon window class."""
 
@@ -123,74 +90,6 @@ class KeyMon:
     """Shorthand for getattr(self.options, attr)"""
     return getattr(self.options, attr)
 
-  def create_names_to_fnames(self):
-    """Give a name to images."""
-    ftn = {
-      'MOUSE': [self.svg_name('mouse'),],
-      'BTN_MIDDLE': [self.svg_name('mouse'), self.svg_name('middle-mouse')],
-      'SCROLL_UP': [self.svg_name('mouse'), self.svg_name('scroll-up-mouse')],
-      'SCROLL_DOWN': [self.svg_name('mouse'), self.svg_name('scroll-dn-mouse')],
-
-      'REL_LEFT': [self.svg_name('mouse'), self.svg_name('sroll-lft-mouse')],
-      'REL_RIGHT': [self.svg_name('mouse'), self.svg_name('scroll-rgt-mouse')],
-      'SHIFT': [self.svg_name('shift')],
-      'SHIFT_EMPTY': [self.svg_name('shift'), self.svg_name('whiteout-72')],
-      'CTRL': [self.svg_name('ctrl')],
-      'CTRL_EMPTY': [self.svg_name('ctrl'), self.svg_name('whiteout-58')],
-      'META': [self.svg_name('meta'), self.svg_name('meta')],
-      'META_EMPTY': [self.svg_name('meta'), self.svg_name('whiteout-58')],
-      'ALT': [self.svg_name('alt')],
-      'ALT_EMPTY': [self.svg_name('alt'), self.svg_name('whiteout-58')],
-      'ALTGR': [self.svg_name('altgr')],
-      'ALTGR_EMPTY': [self.svg_name('altgr'), self.svg_name('whiteout-58')],
-      'KEY_EMPTY': [
-          fix_svg_key_closure(self.svg_name('one-char-template'), [('&amp;', '')]),
-              self.svg_name('whiteout-48')],
-      'BTN_LEFTRIGHT': [
-          self.svg_name('mouse'), self.svg_name('left-mouse'),
-          self.svg_name('right-mouse')],
-      'BTN_LEFTMIDDLERIGHT': [
-          self.svg_name('mouse'), self.svg_name('left-mouse'),
-          self.svg_name('middle-mouse'), self.svg_name('right-mouse')],
-    }
-    left_str = 'left'
-    right_str = 'right'
-
-    ftn.update({
-      'BTN_RIGHT': [self.svg_name('mouse'),
-        self.svg_name('%s-mouse' % right_str)],
-      'BTN_LEFT': [self.svg_name('mouse'),
-        self.svg_name('%s-mouse' % left_str)],
-      'BTN_LEFTMIDDLE': [
-          self.svg_name('mouse'), self.svg_name('%s-mouse' % left_str),
-          self.svg_name('middle-mouse')],
-      'BTN_MIDDLERIGHT': [
-          self.svg_name('mouse'), self.svg_name('middle-mouse'),
-          self.svg_name('%s-mouse' % right_str)],
-    })
-
-    ftn.update({
-      'KEY_SPACE': [
-          fix_svg_key_closure(self.svg_name('two-line-wide'),
-          [('TOP', 'Space'), ('BOTTOM', '')])],
-      'KEY_TAB': [
-          fix_svg_key_closure(self.svg_name('two-line-wide'),
-          [('TOP', 'Tab'), ('BOTTOM', u'\u21B9')])],
-      'KEY_BACKSPACE': [
-          fix_svg_key_closure(self.svg_name('two-line-wide'),
-          [('TOP', 'Back'), ('BOTTOM', u'\u21fd')])],
-      'KEY_RETURN': [
-          fix_svg_key_closure(self.svg_name('two-line-wide'),
-          [('TOP', 'Enter'), ('BOTTOM', u'\u23CE')])],
-      'KEY_CAPS_LOCK': [
-          fix_svg_key_closure(self.svg_name('two-line-wide'),
-          [('TOP', 'Capslock'), ('BOTTOM', '')])],
-      'KEY_MULTI_KEY': [
-          fix_svg_key_closure(self.svg_name('two-line-wide'),
-          [('TOP', 'Compose'), ('BOTTOM', '')])],
-    })
-    return ftn
-
   def create_window(self):
     """Create the main window."""
     self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
@@ -204,11 +103,6 @@ class KeyMon:
     self.mouse_indicator_win = shaped_window.ShapedWindow(
         self.svg_name('mouse-indicator'),
         timeout=self.options.visible_click_timeout)
-
-    self.mouse_follower_win = shaped_window.ShapedWindow(
-        self.svg_name('mouse-follower'))
-    if self.options.follow_mouse:
-        self.mouse_follower_win.show()
 
     self.window.set_opacity(self.options.opacity)
     self.window.set_keep_above(True)
@@ -349,10 +243,6 @@ def create_options():
                   ini_group='ui', ini_name='visible-click',
                   default=False,
                   help=_('Show where you clicked'))
-  opts.add_option(opt_long='--follow_mouse', dest='follow_mouse', type='bool',
-                  ini_group='ui', ini_name='follow-mouse',
-                  default=False,
-                  help=_('Show the mouse more visibly'))
   opts.add_option(opt_long='--kbdfile', dest='kbd_file',
                   ini_group='devices', ini_name='map',
                   default=None,
