@@ -95,7 +95,6 @@ class KeyMon:
                  'BTN_LEFTMIDDLERIGHT']
     self.options = options
     self.pathname = os.path.dirname(os.path.abspath(__file__))
-    self.svg_size = ''
     # Make lint happy by defining these.
     self.hbox = None
     self.window = None
@@ -130,7 +129,6 @@ class KeyMon:
 
   def create_names_to_fnames(self):
     """Give a name to images."""
-    self.svg_size = ''
     ftn = {
       'MOUSE': [self.svg_name('mouse'),],
       'BTN_MIDDLE': [self.svg_name('mouse'), self.svg_name('middle-mouse')],
@@ -247,11 +245,7 @@ class KeyMon:
   def svg_name(self, fname):
     """Return an svg filename given the theme, system."""
     themepath = self.options.themes[self.options.theme][1]
-    fullname = os.path.join(themepath, '%s%s.svg' % (fname, self.svg_size))
-    if self.svg_size and not os.path.exists(fullname):
-      # Small not found, defaulting to large size
-      fullname = os.path.join(themepath, '%s.svg' % fname)
-    return fullname
+    return os.path.join(themepath, '%s.svg' % (fname))
 
   def add_events(self):
     """Add events for the window to listen to."""
