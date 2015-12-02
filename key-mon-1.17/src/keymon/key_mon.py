@@ -104,8 +104,6 @@ class KeyMon:
     self.window = None
     self.event_box = None
     self.mouse_indicator_win = None
-    self.key_image = None
-    self.buttons = None
 
     self.no_press_timer = None
 
@@ -114,9 +112,6 @@ class KeyMon:
     self.shape_mask_cache = {}
 
     self.MODS = ['SHIFT', 'CTRL', 'META', 'ALT']
-    self.IMAGES = ['MOUSE'] + self.MODS
-    self.images = dict([(img, None) for img in self.IMAGES])
-    self.enabled = dict([(img, self.get_option(cstrf(img.lower))) for img in self.IMAGES])
 
 
     self.options.kbd_files = settings.get_kbd_files()
@@ -232,8 +227,6 @@ class KeyMon:
     self.window.add(self.event_box)
     self.event_box.show()
 
-    self.create_images()
-
     self.hbox = gtk.HBox(False, 0)
     self.event_box.add(self.hbox)
 
@@ -251,47 +244,9 @@ class KeyMon:
       self.window.move(old_x, old_y)
     self.window.show()
 
-  def create_images(self):
-    self.images['MOUSE'] = two_state_image.TwoStateImage(self.pixbufs, 'MOUSE')
-    for img in self.MODS:
-      self.images[img] = two_state_image.TwoStateImage(
-          self.pixbufs, img + '_EMPTY', self.enabled[img])
-    self.create_buttons()
-
-  def create_buttons(self):
-    self.buttons = list(self.images[img] for img in self.IMAGES)
-    for _ in range(self.options.old_keys):
-      key_image = two_state_image.TwoStateImage(self.pixbufs, 'KEY_EMPTY')
-      self.buttons.append(key_image)
-    self.key_image = two_state_image.TwoStateImage(self.pixbufs, 'KEY_EMPTY')
-    self.buttons.append(self.key_image)
-    for but in self.buttons:
-      if but.normal == 'MOUSE':
-        but.timeout_secs = self.options.mouse_timeout
-      else:
-        but.timeout_secs = self.options.key_timeout
-
   def layout_boxes(self):
     for child in self.hbox.get_children():
       self.hbox.remove(child)
-    for img in self.IMAGES:
-      if not self.enabled[img]:
-        self.images[img].hide()
-      self.hbox.pack_start(self.images[img], False, False, 0)
-
-    prev_key_image = None
-    for key_image in self.buttons[-(self.options.old_keys + 1):-1]:
-#      key_image.hide()
-      #key_image.timeout_secs = 0.5
-      key_image.defer_to = prev_key_image
-      self.hbox.pack_start(key_image, True, True, 0)
-      prev_key_image = key_image
-
-    # This must be after the loop above.
-    #self.key_image.timeout_secs = 0.5
-
-    self.key_image.defer_to = prev_key_image
-    self.hbox.pack_start(self.key_image, True, True, 0)
 
   def svg_name(self, fname):
     """Return an svg filename given the theme, system."""
@@ -370,9 +325,6 @@ class KeyMon:
     try:
       if event:
         self.handle_event(event)
-      else:
-        for button in self.buttons:
-          button.empty_event()
       time.sleep(0.001)
     except KeyboardInterrupt:
       self.quit_program()
@@ -386,26 +338,6 @@ class KeyMon:
 
   def handle_event(self, event):
     """Handle an X event."""
-    if event.type == 'EV_MOV':
-      if self.mouse_indicator_win.get_property('visible'):
-        self.mouse_indicator_win.center_on_cursor(*event.value)
-      if self.mouse_follower_win.get_property('visible'):
-        self.mouse_follower_win.center_on_cursor(*event.value)
-      if self.move_dragged:
-        self._window_moved()
-    elif event.type == 'EV_KEY' and event.value in (0, 1):
-      if type(event.code) == str:
-        if event.code.startswith('KEY'):
-          code_num = event.scancode
-          self.handle_key(code_num, event.code, event.value)
-        elif event.code.startswith('BTN'):
-          self.handle_mouse_button(event.code, event.value)
-      if not self.move_dragged:
-        self.reset_no_press_timer()
-    elif event.type.startswith('EV_REL') and event.code == 'REL_WHEEL':
-      self.handle_mouse_scroll(event.value, event.value)
-    elif event.code.startswith('REL'):
-      self.handle_mouse_scroll(event.value, event.value)
 
     self._log_event(event)
 
@@ -458,33 +390,7 @@ class KeyMon:
       return True
     if self.is_shift_code(name):
       return True
-    if (any(self.images[img].is_pressed() for img in self.MODS)):
-      return True
     return False
-
-  def _handle_event(self, image, name, code):
-    """Handle an event given image and code."""
-
-    # key down == (code == 1)
-    # key up == (code == 0)
-
-    image.really_pressed = code == 1
-    if code == 1:
-      if self._show_down_key(name):
-        logging.debug('Switch to %s, code %s' % (name, code))
-        image.switch_to(name)
-      return
-
-    # on key up
-    if self.is_shift_code(name):
-      # shift up is always shown
-      if not self.options.sticky_mode:
-        image.switch_to_default()
-      return
-    else:
-      for img in self.MODS:
-        self.images[img].reset_time_if_pressed()
-      image.switch_to_default()
 
   def is_shift_code(self, code):
     if code in ('SHIFT', 'ALT', 'ALTGR', 'CTRL', 'META'):
@@ -501,25 +407,13 @@ class KeyMon:
     logging.debug('Scan code %s, Key %s pressed = %r', scan_code,
                                                        code, medium_name)
     if code in self.name_fnames:
-      self._handle_event(self.key_image, code, value)
       return
-    for keysym, img in (('KEY_SHIFT', 'SHIFT'), ('KEY_CONTROL', 'CTRL'),
-                        ('KEY_ALT', 'ALT'), ('KEY_ISO_LEVEL3_SHIFT', 'ALT'),
-                        ('KEY_SUPER', 'META')):
-      if code.startswith(keysym):
-        if self.enabled[img]:
-          if keysym == 'KEY_ISO_LEVEL3_SHIFT':
-            self._handle_event(self.images['ALT'], 'ALTGR', value)
-          else:
-            self._handle_event(self.images[img], img, value)
-        return
     if code.startswith('KEY_KP'):
       letter = medium_name
       if code not in self.name_fnames:
         template = 'one-char-numpad-template'
         self.name_fnames[code] = [
             fix_svg_key_closure(self.svg_name(template), [('&amp;', letter)])]
-      self._handle_event(self.key_image, code, value)
       return
 
     if code.startswith('KEY_'):
@@ -534,53 +428,7 @@ class KeyMon:
             fix_svg_key_closure(self.svg_name(template), [('&amp;', letter)])]
       else:
         logging.debug('code in %s', code)
-      self._handle_event(self.key_image, code, value)
       return
-
-  def handle_mouse_button(self, code, value):
-    """Handle the mouse button event."""
-    if self.enabled['MOUSE']:
-      if code in self.btns:
-        n_image = 0
-        n_code = 0
-        for i, btn in enumerate(self.btns):
-          if btn == code:
-            n_code = i
-          if btn == self.images['MOUSE'].current:
-            n_image = i
-        if value == 0 and n_code != n_image:
-          code = self.btns[n_image - n_code]
-        elif value == 1 and n_image:
-          code = self.btns[n_image | n_code]
-      elif code not in self.name_fnames:
-        btn_num = code.replace('BTN_', '')
-        self.name_fnames[code] = [
-            fix_svg_key_closure(self.svg_name('mouse'),
-                [('>&#8203;', '>' + btn_num)])]
-      self._handle_event(self.images['MOUSE'], code, value)
-
-    if self.options.visible_click:
-      if value == 1:
-        self.mouse_indicator_win.center_on_cursor()
-        self.mouse_indicator_win.maybe_show()
-      else:
-        self.mouse_indicator_win.fade_away()
-    return True
-
-  def handle_mouse_scroll(self, direction, unused_value):
-    """Handle the mouse scroll button event."""
-    if not self.enabled['MOUSE']:
-      return
-    if direction == 'REL_RIGHT':
-      self._handle_event(self.images['MOUSE'], 'REL_RIGHT', 1)
-    elif direction == 'REL_LEFT':
-      self._handle_event(self.images['MOUSE'], 'REL_LEFT', 1)
-    elif direction > 0:
-      self._handle_event(self.images['MOUSE'], 'SCROLL_UP', 1)
-    elif direction < 0:
-      self._handle_event(self.images['MOUSE'], 'SCROLL_DOWN', 1)
-    self.images['MOUSE'].switch_to_default()
-    return True
 
   def quit_program(self, *unused_args):
     """Quit the program."""
@@ -629,24 +477,12 @@ class KeyMon:
 
   def settings_changed(self, unused_dlg):
     """Event received from the settings dialog."""
-    for img in self.IMAGES:
-      self._toggle_a_key(self.images[img], img, self.get_option(cstrf(img.lower)))
-    self.create_buttons()
     self.layout_boxes()
     self.mouse_indicator_win.hide()
     self.mouse_indicator_win.timeout = self.options.visible_click_timeout
     self.window.set_decorated(self.options.decorated)
     self.name_fnames = self.create_names_to_fnames()
     self.pixbufs.reset_all(self.name_fnames, 1.0)
-    for but in self.buttons:
-      if but.normal != 'KEY_EMPTY':
-        but.reset_image(self.enabled[but.normal.replace('_EMPTY', '')])
-      else:
-        but.reset_image()
-      if but.normal == 'MOUSE':
-        but.timeout_secs = self.options.mouse_timeout
-      else:
-        but.timeout_secs = self.options.key_timeout
 
     # all this to get it to resize smaller
     x, y = self.window.get_position()
@@ -662,47 +498,9 @@ class KeyMon:
     self.modmap = mod_mapper.safely_read_mod_map(
             self.options.kbd_file, self.options.kbd_files)
 
-  def _toggle_a_key(self, image, name, show):
-    """Toggle show/hide a key."""
-    if self.enabled[name] == show:
-      return
-    if show:
-      image.showit = True
-      self.enabled[name] = True
-      image.switch_to_default()
-    else:
-      image.showit = False
-      self.enabled[name] = False
-      image.hide()
-
 def create_options():
   opts = options.Options()
 
-  opts.add_option(opt_short='-m', opt_long='--meta', dest='meta', type='bool',
-                  ini_group='buttons', ini_name='meta', default=None,
-                  help=_('Show the meta (windows) key.'))
-  opts.add_option(opt_long='--mouse', dest='mouse', type='bool', default=True,
-                  ini_group='buttons', ini_name='mouse',
-                  help=_('Show the mouse.'))
-  opts.add_option(opt_long='--shift', dest='shift', type='bool', default=True,
-                  ini_group='buttons', ini_name='shift',
-                  help=_('Show shift key.'))
-  opts.add_option(opt_long='--ctrl', dest='ctrl', type='bool', default=True,
-                  ini_group='buttons', ini_name='ctrl',
-                  help=_('Show the ctrl key.'))
-  opts.add_option(opt_long='--alt', dest='alt', type='bool', default=True,
-                  ini_group='buttons', ini_name='alt',
-                  help=_('Show the alt key.'))
-  opts.add_option(opt_long='--key-timeout', dest='key_timeout',
-                  type='float', default=0.5,
-                  ini_group='ui', ini_name='key_timeout',
-                  help=_('Timeout before key returns to unpressed image. '
-                         'Defaults to %default'))
-  opts.add_option(opt_long='--mouse-timeout', dest='mouse_timeout',
-                  type='float', default=0.2,
-                  ini_group='ui', ini_name='mouse_timeout',
-                  help=_('Timeout before mouse returns to unpressed image. '
-                         'Defaults to %default'))
   opts.add_option(opt_long='--visible-click-timeout', dest='visible_click_timeout',
                   type='float', default=0.2,
                   ini_group='ui', ini_name='visible_click_timeout',
@@ -736,10 +534,6 @@ def create_options():
   opts.add_option(opt_short='-t', opt_long='--theme', dest='theme', type='str',
                   ini_group='ui', ini_name='theme', default='classic',
                   help=_('The theme to use when drawing status images (ex. "-t apple").'))
-  opts.add_option(opt_long='--old-keys', dest='old_keys', type='int',
-                  ini_group='buttons', ini_name='old-keys',
-                  help=_('How many historical keypresses to show (defaults to %default)'),
-                  default=0)
   opts.add_option(opt_long='--reset', dest='reset', type='bool',
                   help=_('Reset all options to their defaults.'),
                   default=None)

@@ -385,9 +385,6 @@ class Options(object):
 
 if __name__ == '__main__':
   o = Options()
-  o.add_option(opt_short='-m', opt_long='--meta', dest='meta', type='bool',
-               ini_group='buttons', ini_name='meta', default=False,
-               help='Show the meta (windows) key.')
   o.add_option(opt_long='--kbdfile', dest='kbd_file',
                ini_group='devices', ini_name='map',
                default='us.kbd',
@@ -397,10 +394,6 @@ if __name__ == '__main__':
   o.add_option(opt_short='-t', opt_long='--theme', dest='theme', type='str',
                ini_group='ui', ini_name='theme',
                help='The theme to use when drawing status images (ex. "-t apple").')
-  o.add_option(opt_long='--old-keys', dest='old_keys', type='int',
-               ini_group='buttons', ini_name='old-keys',
-               help='How many historical keypresses to show (defaults to %default)',
-               default=0)
   o.add_option(opt_short=None, opt_long=None, type='int',
                dest='x_pos', default=-1, help='Last X Position',
                ini_group='position', ini_name='x')
@@ -411,9 +404,6 @@ if __name__ == '__main__':
   lines = []
   lines.append('[ui]')
   lines.append('theme = classic')
-  lines.append('[buttons]')
-  lines.append('meta = 0')
-  lines.append('old-keys = 0')
   lines.append('[devices]')
   lines.append('map = us.kbd')
   lines.append('[position]')

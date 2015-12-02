@@ -48,9 +48,6 @@ class SettingsDialog(gtk.Dialog):
     self.notebook = gtk.Notebook()
     self.vbox.pack_start(self.notebook)
 
-    buttons = ButtonsFrame(self)
-    self.notebook.append_page(buttons, gtk.Label(_('Buttons')))
-
     misc = MiscFrame(self)
     self.notebook.append_page(misc, gtk.Label(_('Misc')))
 
@@ -177,19 +174,6 @@ class MiscFrame(CommonFrame):
 
     timeouts = ['0.2', '0.4', '0.5', '0.6', '0.8', '1.0', '1.2',
             '1.4', '1.6', '1.8', '2.0', '2.5', '3.0', '3.5', '4.0']
-    self._add_dropdown(
-        vbox,
-        _('Key timeout:'),
-        _('How long before activated key buttons disappear. '
-          'Default is 0.5'),
-        timeouts, 'key_timeout', 4)
-
-    self._add_dropdown(
-        vbox,
-        _('Mouse timeout:'),
-        _('How long before activated mouse buttons disappear. '
-          'Default is 0.2'),
-        timeouts, 'mouse_timeout', 4)
 
     self._add_dropdown(
         vbox,
@@ -213,48 +197,6 @@ class MiscFrame(CommonFrame):
         _('Keymap:'),
         _('Which keymap file to use'),
         self.kbd_files, 'kbd_file')
-    self.add(vbox)
-
-class ButtonsFrame(CommonFrame):
-  """The buttons frame."""
-  def __init__(self, settings):
-    """Create common frame."""
-    CommonFrame.__init__(self, settings)
-
-  def create_layout(self):
-    """Create the layout for buttons."""
-    vbox = gtk.VBox()
-
-    self._add_check(
-        vbox,
-        _('_Mouse'),
-        _('Show the mouse.'),
-        'mouse')
-    self._add_check(
-        vbox,
-        _('_Shift'),
-        _('Show the shift key when pressed.'),
-        'shift')
-    self._add_check(
-        vbox,
-        _('_Ctrl'),
-        _('Show the Control key when pressed.'),
-        'ctrl')
-    self._add_check(
-        vbox,
-        _('Meta (_windows keys)'),
-        _('Show the Window\'s key (meta key) when pressed.'),
-        'meta')
-    self._add_check(
-        vbox,
-        _('_Alt'),
-        _('Show the Alt key when pressed.'),
-        'alt')
-    self._add_dropdown(
-        vbox,
-        _('Old Keys:'),
-        _('When typing fast show more than one key typed.'),
-        [0, 1, 2, 3, 4], 'old_keys')
     self.add(vbox)
 
 def _test_settings_changed(unused_widget):
