@@ -25,15 +25,12 @@ name.
 __author__ = 'Scott Kirkwood (scott+keymon@forusers.com)'
 
 import ConfigParser
-import gettext
 import logging
 import optparse
 import os
 import sys
 
 LOG = logging.getLogger('options')
-
-gettext.install('key-mon', 'locale')
 
 class OptionException(Exception):
   pass
@@ -125,11 +122,6 @@ class OptionItem(object):
       opt_val = getattr(opts, self._dest)
       if found:
         self._set_temp_value(opt_val)
-
-  def reset_to_default(self):
-    """Reset to the default value."""
-    self._set_value(self._default)
-    self._set_temp_value(None)
 
   def get_value(self):
     """Return the value."""
@@ -268,15 +260,3 @@ class Options(object):
     self._opt_ret, self._other_args = parser.parse_args(args)
     for opt in self._options.values():
       opt.set_from_optparse(self._opt_ret, args)
-
-  def _make_dirs(self, fname):
-    if not os.path.exists(fname):
-      dirname = os.path.dirname(fname)
-      if not os.path.exists(dirname):
-        LOG.info('Creating directory %r', dirname)
-        os.makedirs(dirname)
-
-  def reset_to_defaults(self):
-    """Reset ini file to defaults."""
-    for opt in self._options.values():
-      opt.reset_to_default()

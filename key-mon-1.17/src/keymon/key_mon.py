@@ -22,14 +22,11 @@ Shows their status graphically.
 __author__ = 'Scott Kirkwood (scott+keymon@forusers.com)'
 __version__ = '1.17'
 
-import locale
 import logging
 import pygtk
 pygtk.require('2.0')
-import gettext
 import gobject
 import gtk
-import os
 import sys
 import time
 try:
@@ -43,8 +40,6 @@ import mod_mapper
 import settings
 
 from ConfigParser import SafeConfigParser
-
-gettext.install('key-mon', 'locale')
 
 class KeyMon:
   def __init__(self, options):
@@ -119,29 +114,25 @@ def create_options():
 
   opts.add_option(opt_long='--only_combo', dest='only_combo', type='bool',
                   default=False,
-                  help=_('Show only key combos (ex. Control-A)'))
+                  help='Show only key combos (ex. Control-A)')
   opts.add_option(opt_long='--sticky', dest='sticky_mode', type='bool',
                   default=False,
-                  help=_('Sticky mode'))
+                  help='Sticky mode')
   opts.add_option(opt_long='--kbdfile', dest='kbd_file',
                   default=None,
-                  help=_('Use this kbd filename.'))
-  opts.add_option(opt_long='--reset', dest='reset', type='bool',
-                  help=_('Reset all options to their defaults.'),
-                  default=None)
+                  help='Use this kbd filename.')
 
   opts.add_option(opt_short=None, opt_long=None, type='int',
                   dest='x_pos', default=-1, help='Last X Position')
   opts.add_option(opt_short=None, opt_long=None, type='int',
                   dest='y_pos', default=-1, help='Last Y Position')
 
-  opts.add_option_group(_('Developer Options'), _('These options are for developers.'))
   opts.add_option(opt_long='--loglevel', dest='loglevel', type='str', default='',
-                  help=_('Logging level'))
+                  help='Logging level')
   opts.add_option(opt_short='-d', opt_long='--debug', dest='debug', type='bool',
                   default=False,
-                  help=_('Output debugging information. '
-                         'Shorthand for --loglevel=debug'))
+                  help='Output debugging information. '
+                         'Shorthand for --loglevel=debug')
   return opts
 
 
@@ -171,7 +162,7 @@ def main():
     logging.disable(logging.WARNING)
 
   opts = create_options()
-  desc = _('Usage: %prog [Options...]')
+  desc = 'Usage: %prog [Options...]'
   opts.parse_args(desc, sys.argv)
 
   keymon = KeyMon(opts)

@@ -18,7 +18,6 @@
 
 __author__ = 'scott@forusers.com (Scott Kirkwood)'
 
-import gettext
 import gobject
 import gtk
 import logging
