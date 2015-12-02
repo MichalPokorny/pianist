@@ -49,6 +49,7 @@ from ConfigParser import SafeConfigParser
 
 gettext.install('key-mon', 'locale')
 
+
 def fix_svg_key_closure(fname, from_tos):
   """Create a closure to modify the key.
   Args:
@@ -128,6 +129,9 @@ class KeyMon:
     self.pixbufs = lazy_pixbuf_creator.LazyPixbufCreator(self.name_fnames)
     self.create_window()
     self.reset_no_press_timer()
+
+    path = '/tmp/prvak-log-%s' % time.strftime('%Y%m%d-%H%M%S', time.gmtime())
+    self.event_log = open(path, 'w')
 
   def get_option(self, attr):
     """Shorthand for getattr(self.options, attr)"""
@@ -423,6 +427,11 @@ class KeyMon:
       return False
     return True  # continue calling
 
+  def _log_event(self, event):
+    self.event_log.write('%.5f;%s;%s;%s\n' % (
+        time.time(), event.type, event.code, event.value))
+    self.event_log.flush()
+
   def handle_event(self, event):
     """Handle an X event."""
     if event.type == 'EV_MOV':
@@ -445,6 +454,8 @@ class KeyMon:
       self.handle_mouse_scroll(event.value, event.value)
     elif event.code.startswith('REL'):
       self.handle_mouse_scroll(event.value, event.value)
+
+    self._log_event(event)
 
   def reset_no_press_timer(self):
     """Initialize no_press_timer"""
@@ -501,6 +512,10 @@ class KeyMon:
 
   def _handle_event(self, image, name, code):
     """Handle an event given image and code."""
+
+    # key down == (code == 1)
+    # key up == (code == 0)
+
     image.really_pressed = code == 1
     if code == 1:
       if self._show_down_key(name):
