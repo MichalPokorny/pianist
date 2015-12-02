@@ -171,22 +171,18 @@ class KeyMon:
   def destroy(self, unused_widget, unused_data=None):
     """Also quit the program."""
     self.devices.stop_listening()
-    self.options.save()
     gtk.main_quit()
 
 def create_options():
   opts = options.Options()
 
   opts.add_option(opt_long='--only_combo', dest='only_combo', type='bool',
-                  ini_group='ui', ini_name='only_combo',
                   default=False,
                   help=_('Show only key combos (ex. Control-A)'))
   opts.add_option(opt_long='--sticky', dest='sticky_mode', type='bool',
-                  ini_group='ui', ini_name='sticky_mode',
                   default=False,
                   help=_('Sticky mode'))
   opts.add_option(opt_long='--kbdfile', dest='kbd_file',
-                  ini_group='devices', ini_name='map',
                   default=None,
                   help=_('Use this kbd filename.'))
   opts.add_option(opt_long='--reset', dest='reset', type='bool',
@@ -194,11 +190,9 @@ def create_options():
                   default=None)
 
   opts.add_option(opt_short=None, opt_long=None, type='int',
-                  dest='x_pos', default=-1, help='Last X Position',
-                  ini_group='position', ini_name='x')
+                  dest='x_pos', default=-1, help='Last X Position')
   opts.add_option(opt_short=None, opt_long=None, type='int',
-                  dest='y_pos', default=-1, help='Last Y Position',
-                  ini_group='position', ini_name='y')
+                  dest='y_pos', default=-1, help='Last Y Position')
 
   opts.add_option_group(_('Developer Options'), _('These options are for developers.'))
   opts.add_option(opt_long='--loglevel', dest='loglevel', type='str', default='',
@@ -236,14 +230,9 @@ def main():
     logging.disable(logging.WARNING)
 
   opts = create_options()
-  opts.read_ini_file(os.path.join(settings.get_config_dir(), 'config'))
   desc = _('Usage: %prog [Options...]')
   opts.parse_args(desc, sys.argv)
 
-  if opts.reset:
-    print _('Resetting to defaults.')
-    opts.reset_to_defaults()
-    opts.save()
   keymon = KeyMon(opts)
   try:
     gtk.main()

@@ -410,18 +410,3 @@ def safely_read_mod_map(fname, kbd_files):
   else:
     logging.error('Can not find default kbd file')
   return ret
-
-def _run_test():
-  """Run some tests on the my.kbd file."""
-  filename = 'my.kdb'
-  modmap = read_mod_map()
-  create_my_kdb(filename, modmap)
-  entries = read_kdb(filename)
-  print 'Read %r with %d entires' % (filename, len(entries))
-  for ecode in modmap:
-    if ecode not in entries:
-      print 'Missing entry for code %s' % ecode
-
-
-if __name__ == '__main__':
-  _run_test()

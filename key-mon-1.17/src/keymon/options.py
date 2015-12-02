@@ -21,8 +21,6 @@ options from the command line.
 
 It behaves a little like optparse in that you can get or set the attributes by
 name.
-
-It uses ConfigParser to save the variables to disk in ini format.
 """
 __author__ = 'Scott Kirkwood (scott+keymon@forusers.com)'
 
@@ -44,11 +42,9 @@ class OptionItem(object):
   """Handles on option.
   It know both about optparse options and ConfigParser options.
   By setting opt_short, opt_long to None you won't create an optparse option.
-  By setting ini_group, ini_name to None you won't create a ConfigParser option.
   """
   def __init__(self, dest, _type, default, name, help,
-      opt_group=None, opt_short=None, opt_long=None,
-      ini_group=None, ini_name=None):
+      opt_group=None, opt_short=None, opt_long=None):
     """Create an option
     Args:
       dest: a unique name for this variable, used internally.
@@ -59,8 +55,6 @@ class OptionItem(object):
       opt_group: Optional option group
       opt_short: the short name of the option
       opt_long: the long name for the option
-      ini_group: optional name of the group in the ini file.
-      ini_name: optional name of the name in the ini file
     """
     self._dirty = False
     self._value = None
@@ -78,8 +72,6 @@ class OptionItem(object):
     self._opt_long = opt_long
     if self._opt_long and not self._opt_long.startswith('--'):
       raise OptionException('Invalid long option %r' % self._opt_long)
-    self._ini_group = ini_group
-    self._ini_name = ini_name
     if self._type not in ('int', 'float', 'bool', 'str'):
       raise OptionException('Unsupported type: %s' % self._type)
     self._set_value(default)
@@ -108,12 +100,6 @@ class OptionItem(object):
     parser.add_option(action='store_true', default=self._default,
       dest=self._dest, help=self._help, *args)
 
-    if self._ini_group:
-      # Only need the --no version if it could be saved to ini file.
-      parser.add_option('--no' + self._opt_long.lstrip('-'),
-              action='store_false',
-              dest=self._dest, help=_('Opposite of %s') % self._opt_long)
-
   def set_from_optparse(self, opts, args):
     """Try and set an option from optparse.
     Args:
@@ -137,9 +123,6 @@ class OptionItem(object):
 
     if hasattr(opts, self._dest):
       opt_val = getattr(opts, self._dest)
-      if not self._ini_name:
-        # For commands like --version which don't have stored values
-        self._set_value(opt_val)
       if found:
         self._set_temp_value(opt_val)
 
@@ -225,35 +208,11 @@ class OptionItem(object):
     """Long option property (ex. '--verbose')."""
     return self._opt_long
 
-  @property
-  def ini_group(self):
-    """Name of the ini group or None."""
-    return self._ini_group
-
-  @property
-  def ini_name(self):
-    """Name in the ini, or None."""
-    return self._ini_name
-
-  @property
-  def ini_value(self):
-    """Value to store in the ini, always a string."""
-    if self._value is None:
-      return None
-    if self._type == 'bool':
-      if self._value is True:
-        return '1'
-      else:
-        return '0'
-    else:
-      return str(self._value)
-
 
 class Options(object):
   """Store the options in memory, also saves to dist and creates opt_parser."""
   def __init__(self):
     self._options = {}
-    self._ini_filename = None
     self._opt_group = None
     self._opt_group_desc = {}
     self._options_order = []
@@ -275,8 +234,7 @@ class Options(object):
     self._opt_group_desc[group] = desc
 
   def add_option(self, dest, type='str', default=None, name=None, help=None,
-      opt_short=None, opt_long=None,
-      ini_group=None, ini_name=None):
+      opt_short=None, opt_long=None):
     """Create an option
     Args:
       dest: a unique name for this variable, used internally.
@@ -287,8 +245,6 @@ class Options(object):
       opt_group: the name of the option group or None
       opt_short: the short name of the option
       opt_long: the long name for the option
-      ini_group: the name of the group in the ini file.
-      ini_name: the name of the name in the ini file
     """
     if dest in self._options:
       raise OptionException('Options %s already added' % dest)
@@ -296,8 +252,7 @@ class Options(object):
     self._options_order.append(dest)
     self._options[dest] = OptionItem(dest, type, default,
         name, help,
-        opt_group=self._opt_group, opt_short=opt_short, opt_long=opt_long,
-        ini_group=ini_group, ini_name=ini_name)
+        opt_group=self._opt_group, opt_short=opt_short, opt_long=opt_long)
 
   def parse_args(self, desc, args=None):
     """Add the options to the optparse instance and parse command line
@@ -314,54 +269,6 @@ class Options(object):
     for opt in self._options.values():
       opt.set_from_optparse(self._opt_ret, args)
 
-  def parse_ini(self, fp):
-    """Parser an ini file from fp, which is file-like class."""
-
-    config = ConfigParser.SafeConfigParser()
-    config.readfp(fp)
-    checker = {}
-    for opt in self._options.values():
-      if opt.ini_group:
-        checker[opt.ini_group + '-' + opt.ini_name] = True
-        if (config.has_section(opt.ini_group) and
-            config.has_option(opt.ini_group, opt.ini_name)):
-          opt.value = config.get(opt.ini_group, opt.ini_name)
-          LOG.info('From ini getting %s.%s = %s', opt.ini_group, opt.ini_name,
-              opt.value)
-    for section in config.sections():
-      for name, value in config.items(section):
-        combined_name = section + '-' + name
-        if not combined_name in checker:
-          LOG.info('Unknown option %r in section [%s]', name, section)
-          # we no longer throw an error to be backward compatible
-
-  def write_ini(self, fp):
-    """Parser an ini file from fp, which is file-like class."""
-
-    config = ConfigParser.SafeConfigParser()
-    for opt in self._options.values():
-      if not opt.ini_group:
-        continue
-      if not config.has_section(opt.ini_group):
-        config.add_section(opt.ini_group)
-
-      if opt.ini_value is not None:
-        config.set(opt.ini_group, opt.ini_name, opt.ini_value)
-    config.write(fp)
-
-  def read_ini_file(self, fname):
-    self._ini_filename = os.path.expanduser(fname)
-    LOG.info('Reading from %r', self._ini_filename)
-    if os.path.exists(self._ini_filename) and os.path.isfile(self._ini_filename):
-      fi = open(self._ini_filename)
-      self.parse_ini(fi)
-      fi.close()
-    else:
-      LOG.info('%r does not exist', self._ini_filename)
-
-  def save(self):
-    self._write_ini_file(self._ini_filename)
-
   def _make_dirs(self, fname):
     if not os.path.exists(fname):
       dirname = os.path.dirname(fname)
@@ -369,44 +276,7 @@ class Options(object):
         LOG.info('Creating directory %r', dirname)
         os.makedirs(dirname)
 
-  def _write_ini_file(self, fname):
-    self._make_dirs(fname)
-    LOG.info('Writing config file %r', fname)
-    fo = open(fname, 'w')
-    self.write_ini(fo)
-    fo.close()
-
   def reset_to_defaults(self):
     """Reset ini file to defaults."""
     for opt in self._options.values():
-      if not opt.ini_group:
-        continue
       opt.reset_to_default()
-
-if __name__ == '__main__':
-  o = Options()
-  o.add_option(opt_long='--kbdfile', dest='kbd_file',
-               ini_group='devices', ini_name='map',
-               default='us.kbd',
-               help='Use this kbd filename instead running xmodmap.')
-  o.add_option(opt_short='-v', opt_long='--version', dest='version', type='bool',
-               help='Show version information and exit.')
-  o.add_option(opt_short=None, opt_long=None, type='int',
-               dest='x_pos', default=-1, help='Last X Position',
-               ini_group='position', ini_name='x')
-  o.add_option_group('Developer Options', 'Don\'t use')
-  o.add_option(opt_short='-d',
-               opt_long='--debug', dest='debug', type='bool',
-               help='Output debugging information.')
-  lines = []
-  lines.append('[devices]')
-  lines.append('map = us.kbd')
-  lines.append('[position]')
-  lines.append('x = -1')
-  import StringIO
-  io = StringIO.StringIO('\n'.join(lines))
-  o.parse_ini(io)
-  o.parse_args('%prog [options]', sys.argv)
-  io = StringIO.StringIO()
-  o.write_ini(io)
-  print io.getvalue()
