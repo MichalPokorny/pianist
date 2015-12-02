@@ -41,18 +41,14 @@ except ImportError:
 import options
 import mod_mapper
 import settings
-import shaped_window
 
 from ConfigParser import SafeConfigParser
 
 gettext.install('key-mon', 'locale')
 
 class KeyMon:
-  """main KeyMon window class."""
-
   def __init__(self, options):
-    """Create the Key Mon window.
-    Options dict:
+    """Options dict:
       meta: boolean show the meta (windows key)
       kbd_file: string Use the kbd file given.
     """
@@ -60,17 +56,8 @@ class KeyMon:
                  'BTN_LEFT', 'BTN_LEFTRIGHT', 'BTN_LEFTMIDDLE',
                  'BTN_LEFTMIDDLERIGHT']
     self.options = options
-    # Make lint happy by defining these.
-    self.hbox = None
-    self.window = None
-    self.event_box = None
-
-    self.move_dragged = False
-    self.shape_mask_current = None
-    self.shape_mask_cache = {}
 
     self.MODS = ['SHIFT', 'CTRL', 'META', 'ALT']
-
 
     self.options.kbd_files = settings.get_kbd_files()
     self.modmap = mod_mapper.safely_read_mod_map(self.options.kbd_file, self.options.kbd_files)
@@ -78,68 +65,22 @@ class KeyMon:
     self.devices = xlib.XEvents()
     self.devices.start()
 
-    self.create_window()
-
     path = '/tmp/prvak-log-%s' % time.strftime('%Y%m%d-%H%M%S', time.gmtime())
     self.event_log = open(path, 'w')
+
+    self.add_events()
 
   def get_option(self, attr):
     """Shorthand for getattr(self.options, attr)"""
     return getattr(self.options, attr)
 
-  def create_window(self):
-    """Create the main window."""
-    self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
-    self.window.set_resizable(False)
-
-    self.window.set_title('Keyboard Status Monitor')
-    width, height = 30, 48
-    self.window.set_default_size(int(width), int(height))
-    self.window.set_decorated(True)
-    self.window.set_keep_above(True)
-
-    self.event_box = gtk.EventBox()
-    self.window.add(self.event_box)
-    self.event_box.show()
-
-    self.hbox = gtk.HBox(False, 0)
-    self.event_box.add(self.hbox)
-
-    self.hbox.show()
-
-    self.add_events()
-
-    self.set_accept_focus(False)
-    self.window.set_skip_taskbar_hint(True)
-
-    old_x = self.options.x_pos
-    old_y = self.options.y_pos
-    if old_x != -1 and old_y != -1 and old_x and old_y:
-      self.window.move(old_x, old_y)
-    self.window.show()
-
   def add_events(self):
     """Add events for the window to listen to."""
-    self.window.connect('destroy', self.destroy)
-    self.window.connect('leave-notify-event', self.pointer_leave)
-
-    accelgroup = gtk.AccelGroup()
-    key, modifier = gtk.accelerator_parse('<Control>q')
-    accelgroup.connect_group(key, modifier, gtk.ACCEL_VISIBLE, self.quit_program)
-
     gobject.idle_add(self.on_idle)
 
   def pointer_leave(self, unused_widget, unused_evt):
 
     self.set_accept_focus(False)
-
-  def set_accept_focus(self, accept_focus=True):
-
-    self.window.set_accept_focus(accept_focus)
-    if accept_focus:
-      logging.debug('window now accepts focus')
-    else:
-      logging.debug('window now does not accept focus')
 
   def on_idle(self):
     """Check for events on idle."""
